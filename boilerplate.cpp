@@ -39,6 +39,8 @@ GLuint LinkProgram(GLuint vertexShader, GLuint fragmentShader);
 // GLFW callback functions
 int scene = 1;
 int level = 1;
+int width = 700;
+int height = 700;
 // reports GLFW errors
 void ErrorCallback(int error, const char* description)
 {
@@ -66,13 +68,17 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         scene = 4;
     if (key == GLFW_KEY_5 && action == GLFW_PRESS)
         scene = 5;
+    if (key == GLFW_KEY_6 && action == GLFW_PRESS)
+        scene = 6;
+    if (key == GLFW_KEY_7 && action == GLFW_PRESS)
+        scene = 7;
     if (key == GLFW_KEY_UP && action == GLFW_PRESS)
         level++;
     if (key == GLFW_KEY_DOWN && action == GLFW_PRESS && level > 0)
         level--;
     if (key == GLFW_KEY_LEFT && action == GLFW_PRESS && scene > 1)
         scene--;
-    if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && scene < 5)
+    if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && scene < 7)
         scene++;
 }
 
@@ -112,7 +118,7 @@ GLuint shader [SHADER::COUNT];              // Array which stores shader program
 // Gets handles from OpenGL
 void generateIDs()
 {
-    glGenVertexArrays(VAO::COUNT, vao);     // Tells OpenGL to create VAO::COUNT many
+    glGenVertexArrays(VAO::COUNT, vao);		// Tells OpenGL to create VAO::COUNT many
                                             // Vertex Array Objects, and store their
                                             // handles in vao array
     glGenBuffers(VBO::COUNT, vbo);          // Tells OpenGL to create VBO::COUNT many
@@ -318,7 +324,7 @@ void generateSnowFractal(int level){
     // instead of snow fractals, I made a dragon curve, which you'll have to admit is way more badass
 }
 
-void generateFernFractal(int level) {
+void generateFern(int level) {
     points.clear();
     colors.clear();
     
@@ -467,13 +473,145 @@ void generateDragon(int level) {
     }
 }
 
+vec3 hsv_to_rgb(float h, float s, float v) {
+    if(v>1.0)
+        v = 1.0;
+    float hp = h/60.0;
+    float c = v*s;
+    float x = c*(1-abs((fmod(hp, 2)-1)));
+    vec3 rgb(0.0, 0.0, 0.0);
+    
+    if(0<=hp && hp<1)
+        rgb = vec3(c, x, 0);
+    if(1<=hp && hp<2)
+        rgb = vec3(x, c, 0);
+    if(2<=hp && hp<3)
+        rgb = vec3(0, c, x);
+    if(3<=hp && hp<4)
+        rgb = vec3(0, x, c);
+    if(4<=hp && hp<5)
+        rgb = vec3(x, 0, c);
+    if(5<=hp && hp<6)
+        rgb = vec3(c, 0, x);
+    
+    float m = v - c;
+    rgb += vec3(m, m, m);
+    
+    return rgb;
+}
+
+vec3 mapColor(int i, float r, float c) {
+    int di = i;
+    float zn;
+    float hue;
+    
+    zn = sqrt(r + c);
+    hue = di + 1.0 - log(log(abs(zn))) / log(2.0);
+    hue = 0.95 + 20.0 * hue;
+    while(hue > 360.0)
+        hue -= 360.0;
+    while(hue < 0.0)
+        hue += 360.0;
+    
+    return hsv_to_rgb(hue, 0.8, 1.0);
+}
+
+void generateMandelbrot(int level) {
+    points.clear();
+    colors.clear();
+    
+    float x0;
+    float y0;
+    float x;
+    float y;
+    float xtemp;
+    float ytemp;
+    int levelx;
+    
+    for(int i=0; i<height; i++) {
+        for(int j=0; j<width; j++) {
+            x0 = (3.5/(float)width)*j-2.5;
+            y0 = (3.0/(float)height)*i-1.5;
+            x = 0.0;
+            y = 0.0;
+            levelx = level;
+            while(x*x + y*y < 4.0 && levelx > 0) {
+                xtemp = x*x - y*y + x0;
+                ytemp = 2*x*y + y0;
+                if (x == xtemp  &&  y == ytemp) {
+                    levelx = 0;
+                    break;
+                }
+                x = xtemp;
+                y = ytemp;
+                levelx--;
+            }
+            
+            // some weird scaling stuff, I dunno
+            x0 += 0.75;
+            x0 /= 1.75;
+            y0 /= 1.5;
+            
+            points.push_back(vec2(x0, y0));
+            if(levelx == 0)
+                colors.push_back(vec3(0.0, 0.0, 0.0));
+            else
+                colors.push_back(mapColor(levelx, 360.0*x0+365.0, y0));
+        }
+    }
+}
+
+void generateJulia(int level) {
+    points.clear();
+    colors.clear();
+    
+    float x0;
+    float y0;
+    float x;
+    float y;
+    float xtemp;
+    float ytemp;
+    int levelx;
+    
+    for(int i=0; i<height; i++) {
+        for(int j=0; j<width; j++) {
+            x0 = (3.5/(float)width)*j-1.75;
+            y0 = (3.0/(float)height)*i-1.5;
+            x = x0;
+            y = y0;
+            levelx = level;
+            while(x*x + y*y < 4.0 && levelx > 0) {
+                xtemp = x*x - y*y - 0.8;
+                ytemp = 2*x*y + 0.156;
+                if (x == xtemp  &&  y == ytemp) {
+                    levelx = 0;
+                    break;
+                }
+                x = xtemp;
+                y = ytemp;
+                levelx--;
+            }
+            
+            // some weird scaling stuff, I dunno
+            x0 /= 1.75;
+            y0 /= 1.5;
+            
+            points.push_back(vec2(x0, y0));
+            if(levelx == 0)
+                colors.push_back(vec3(0.0, 0.0, 0.0));
+            else
+                colors.push_back(mapColor(levelx, 360.0*x0+365.0, y0));
+        }
+    }
+}
+
 // Initialization
 void initGL()
 {
     // Only call these once - don't call again every time you change geometry
     generateIDs();		// Create VertexArrayObjects and Vertex Buffer Objects and store their handles
     initShader();		// Create shader and store program ID
-    
+
     initVAO();			// Describe setup of Vertex Array Objects and Vertex Buffer Objects
 }
 
@@ -504,7 +642,7 @@ void render()
             glDrawArrays(GL_TRIANGLES, 0, points.size()); // sierpinski carpet
             break;
         case 4:
-            generateFernFractal(level);
+            generateFern(level);
             loadBuffer(points, colors);
             glDrawArrays(GL_POINTS, 0, points.size()); // fern fractal
             break;
@@ -512,6 +650,17 @@ void render()
             generateDragon(level);
             loadBuffer(points, colors);
             glDrawArrays(GL_LINE_STRIP, 0, points.size()); // dragon curve
+            break;
+        case 6:
+            generateMandelbrot(level);
+            loadBuffer(points, colors);
+            glDrawArrays(GL_POINTS, 0, points.size()); // mandelbrot set
+            break;
+        case 7:
+            generateJulia(level);
+            loadBuffer(points, colors);
+            glDrawArrays(GL_POINTS, 0, points.size()); // julia set
+            break;
     }
 }
 
@@ -536,7 +685,7 @@ int main(int argc, char *argv[])
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    window = glfwCreateWindow(512, 512, "CPSC 453 OpenGL Boilerplate", 0, 0);
+    window = glfwCreateWindow(width, height, "CPSC 453 OpenGL Boilerplate", 0, 0);
     if (!window) {
         cout << "Program failed to create GLFW window, TERMINATING" << endl;
         glfwTerminate();
